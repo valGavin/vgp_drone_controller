@@ -15,9 +15,9 @@ class Connection extends StatefulWidget {
 class _ConnectionState extends State<Connection> {
   bool showDialogBox = true;
   bool droneConnected = false;
-  bool cameraConnected = true;  // Temporarily set to true
+  bool cameraConnected = false;
   String droneIP = '';
-  String cameraIP = '192.168.34.233';  // Temporarily set to this
+  String cameraIP = '';
   bool waitingDots = true;
 
   late UDP receiver;
