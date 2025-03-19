@@ -1,16 +1,26 @@
 # vgp_drone_controller
 
-A drone controller that rely on an RPi Pico as the drone receiver, and ESP32-CAM for the camera.
+A drone controller that rely on an RPi Pico W as the drone receiver, and ESP32-CAM for the camera.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+The application requires the phone to start the hotspot with a pre-defined SSID and password that the RPi Pico W and ESP32-CAM can connect to. It'll wait for connection from both devices before proceeding to the control page.
 
-A few resources to get you started if this is your first Flutter project:
+### 1. Clone the repo
+```
+git clone https://github.com/yourusername/vgp_drone_controller.git
+cd vgp_drone_controller
+```
+### 2. AndroidManifest.xml Configuration
+Location: android/app/src/main/AndroidManifest.xml
+```
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## How It Works?
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The application will respond to the UDP broadcast from both the RPi Pico W and ESP32-CAM by sending the acknowledge message. The ESP32-CAM will provide the video stream, while the application will send the four AETR values to the RPi Pico W with the range between 1000 and 2000. This data is packed in two bytes per channel with little endian system.
+
+
