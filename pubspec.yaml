@@ -37,6 +37,7 @@ dependencies:
 
   flutter_joystick: ^0.2.1  # For joystick widget
   udp: ^5.0.3  # For UDP broadcast listening
+  flutter_mjpeg: ^2.0.4  # For camera feed streaming
 
 dev_dependencies:
   flutter_test:
