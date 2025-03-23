@@ -55,9 +55,9 @@ class _BrightnessControlState extends State<BrightnessControl> {
                 color: Colors.black45,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.lightbulb,
-                color: Colors.amberAccent,
+                color: brightness == 0 ? Colors.grey : Colors.amberAccent,
                 size: 32,
               ),
             ),

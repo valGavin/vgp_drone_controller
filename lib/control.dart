@@ -84,7 +84,11 @@ class _ControlState extends State<Control> {
     return Scaffold(
       body: Stack(
         children: [
-          CameraFeed(cameraIP: widget.cameraIP, refreshKey: feedRefreshKey),
+          CameraFeed(
+            cameraIP: widget.cameraIP,
+            refreshKey: feedRefreshKey,
+            onReload: () { setState(() { feedRefreshKey++; }); },
+          ),
           DualJoystick(
             onLeftJoystickChange: handleLeftJoystick,
             onRightJoystickChange: handleRightJoystick
