@@ -25,6 +25,7 @@ class _ControlState extends State<Control> {
   int yaw = 1500;
 
   late UDP sender;
+  bool senderReady = false;
 
   int feedRefreshKey = 0;
 
@@ -32,6 +33,12 @@ class _ControlState extends State<Control> {
   void initState() {
     super.initState();
     lockLandscape();
+    initSender();
+  }
+
+  Future<void> initSender() async {
+    sender = await UDP.bind(Endpoint.any());
+    setState(() { senderReady = true; });
   }
 
   void handleLeftJoystick(int newRoll, int newPitch) {
@@ -67,6 +74,8 @@ class _ControlState extends State<Control> {
   }
 
   void sendData() async {
+    if (!senderReady) return;
+
     final buffer = ByteData(8);
     buffer.setUint16(0, roll, Endian.little);
     buffer.setUint16(2, pitch, Endian.little);
@@ -98,6 +107,8 @@ class _ControlState extends State<Control> {
             pitch: pitch,
             throttle: throttle,
             yaw: yaw,
+            droneIP: widget.droneIP,
+            cameraIP: widget.cameraIP,
           ),
           BrightnessControl(cameraIP: widget.cameraIP),
           SettingsMenu(
