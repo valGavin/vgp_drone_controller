@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 
 class SettingsMenu extends StatefulWidget {
-  final VoidCallback onReloadCamera;
+  final VoidCallback onReloadCamera, onToggleArm;
+  final bool isArmed;
 
-  const SettingsMenu({super.key, required this.onReloadCamera});
+  const SettingsMenu({
+    super.key,
+    required this.onReloadCamera,
+    required this.onToggleArm,
+    required this.isArmed,
+  });
 
   @override
   State<SettingsMenu> createState() => _SettingsMenuState();
@@ -77,6 +83,30 @@ class _SettingsMenuState extends State<SettingsMenu> {
                             style: TextStyle(color: Colors.white),
                           ),
                           onTap: () { exit(0); },
+                        ),
+                        ListTile(
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'ARM',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              Switch(
+                                value: widget.isArmed,
+                                onChanged: (_) {
+                                  widget.onToggleArm();
+                                  setState(() => showMenu = false);
+                                },
+                                activeColor: Colors.greenAccent,
+                                inactiveThumbColor: Colors.redAccent,
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            widget.onToggleArm;
+                            setState(() => showMenu = false);
+                          },
                         ),
                       ],
                     ),

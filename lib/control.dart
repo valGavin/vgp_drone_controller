@@ -21,13 +21,16 @@ class Control extends StatefulWidget {
 class _ControlState extends State<Control> {
   int roll = 1500;
   int pitch = 1500;
-  int throttle = 1500;
+  int throttle = 855;
   int yaw = 1500;
+  int aux1 = 1200;
 
   late UDP sender;
   bool senderReady = false;
 
   int feedRefreshKey = 0;
+
+  bool isArmed = false;
 
   @override
   void initState() {
@@ -51,7 +54,7 @@ class _ControlState extends State<Control> {
 
   void handleRightJoystick(int deltaThrottle, int newYaw) {
     setState(() {
-      throttle = (throttle + deltaThrottle).clamp(1000, 2000);
+      throttle = (throttle + deltaThrottle).clamp(850, 2000);
       yaw = newYaw;
     });
     sendData();
@@ -66,6 +69,14 @@ class _ControlState extends State<Control> {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
 
+  void toggleArm() {
+    setState(() {
+      isArmed = !isArmed;
+      aux1 = isArmed ? 1500 : 1200;
+    });
+    sendData();
+  }
+
   @override
   void dispose() {
     sender.close();
@@ -76,11 +87,12 @@ class _ControlState extends State<Control> {
   void sendData() async {
     if (!senderReady) return;
 
-    final buffer = ByteData(8);
+    final buffer = ByteData(10);
     buffer.setUint16(0, roll, Endian.little);
     buffer.setUint16(2, pitch, Endian.little);
     buffer.setUint16(4, throttle, Endian.little);
     buffer.setUint16(6, yaw, Endian.little);
+    buffer.setUint16(8, aux1, Endian.little);
 
     await sender.send(
       buffer.buffer.asUint8List(),
@@ -100,19 +112,20 @@ class _ControlState extends State<Control> {
           ),
           DualJoystick(
             onLeftJoystickChange: handleLeftJoystick,
-            onRightJoystickChange: handleRightJoystick
+            onRightJoystickChange: handleRightJoystick,
+            isEnabled: isArmed,
           ),
           ChannelValueOverlay(
             roll: roll,
             pitch: pitch,
             throttle: throttle,
             yaw: yaw,
-            droneIP: widget.droneIP,
-            cameraIP: widget.cameraIP,
           ),
           BrightnessControl(cameraIP: widget.cameraIP),
           SettingsMenu(
             onReloadCamera: () { setState(() { feedRefreshKey++; }); },
+            isArmed: isArmed,
+            onToggleArm: toggleArm,
           ),
         ],
       ),
