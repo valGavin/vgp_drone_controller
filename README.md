@@ -8,7 +8,7 @@ The application requires the phone to start the hotspot with a pre-defined SSID 
 
 ### 1. Clone the repo
 ```
-git clone https://github.com/yourusername/vgp_drone_controller.git
+git clone https://github.com/valGavin/vgp_drone_controller.git
 cd vgp_drone_controller
 ```
 ### 2. AndroidManifest.xml Configuration
@@ -21,6 +21,16 @@ Location: android/app/src/main/AndroidManifest.xml
 
 ## How It Works?
 
-The application will respond to the UDP broadcast from both the RPi Pico W and ESP32-CAM by sending the acknowledge message. The ESP32-CAM will provide the video stream, while the application will send the four AETR values to the RPi Pico W with the range between 1000 and 2000. This data is packed in two bytes per channel with little endian system.
+The application will respond to the UDP broadcast from both the RPi Pico W and ESP32-CAM by sending the acknowledge message. The ESP32-CAM will provide the video stream, while the application will send the four AETR values and the ARM channel (AUX1) to the RPi Pico W. Roll, pitch and yaw range between 1000 and 2000; throttle ranges between 850 and 2000; AUX1 is 1200 when disarmed and 1500 when armed. This data is packed in two bytes per channel with little endian system.
 
+The control packet is sent every 20 ms whether or not a stick is moving. The RPi Pico W treats 500 ms without a packet as a lost link and stops driving the flight controller, so this stream doubles as the link heartbeat.
 
+The drone is disarmed, with throttle returned to idle, when the ARM switch is turned off, when Quit is pressed, and when the application leaves the foreground.
+
+## Tests
+
+```
+flutter test
+```
+
+Part of [vGP-Drone](https://github.com/valGavin/vGP-Drone), which holds the project documentation.

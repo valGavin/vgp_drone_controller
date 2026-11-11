@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:udp/udp.dart';
-import 'dart:typed_data';
+import 'dart:async';
 import 'dart:io';
+import 'control_packet.dart';
 import 'widgets/camera_feed.dart';
 import 'widgets/channel_value_overlay.dart';
 import 'widgets/brightness_control.dart';
@@ -18,15 +19,24 @@ class Control extends StatefulWidget {
   State<Control> createState() => _ControlState();
 }
 
-class _ControlState extends State<Control> {
-  int roll = 1500;
-  int pitch = 1500;
-  int throttle = 855;
-  int yaw = 1500;
-  int aux1 = 1200;
+class _ControlState extends State<Control> with WidgetsBindingObserver {
+  /// How often the control packet is sent, whether or not a stick is moving.
+  /// The Pico W stops its iBUS output if packets stop for 500 ms, so this
+  /// stream is the drone's link heartbeat.
+  static const Duration sendInterval = Duration(milliseconds: 20);
 
-  late UDP sender;
-  bool senderReady = false;
+  int roll = channelCentre;
+  int pitch = channelCentre;
+  int throttle = throttleIdle;
+  int yaw = channelCentre;
+  int aux1 = aux1Disarmed;
+
+  UDP? sender;
+  Timer? sendTimer;
+  late final Endpoint droneEndpoint = Endpoint.unicast(
+    InternetAddress(widget.droneIP),
+    port: const Port(controlPort),
+  );
 
   int feedRefreshKey = 0;
 
@@ -35,13 +45,19 @@ class _ControlState extends State<Control> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     lockLandscape();
     initSender();
   }
 
   Future<void> initSender() async {
-    sender = await UDP.bind(Endpoint.any());
-    setState(() { senderReady = true; });
+    final socket = await UDP.bind(Endpoint.any());
+    if (!mounted) {
+      socket.close();
+      return;
+    }
+    sender = socket;
+    sendTimer = Timer.periodic(sendInterval, (_) { sendData(); });
   }
 
   void handleLeftJoystick(int newRoll, int newPitch) {
@@ -49,15 +65,13 @@ class _ControlState extends State<Control> {
       roll = newRoll;
       pitch = newPitch;
     });
-    sendData();
   }
 
   void handleRightJoystick(int deltaThrottle, int newYaw) {
     setState(() {
-      throttle = (throttle + deltaThrottle).clamp(850, 2000);
+      throttle = (throttle + deltaThrottle).clamp(throttleMin, throttleMax);
       yaw = newYaw;
     });
-    sendData();
   }
 
   void lockLandscape() {
@@ -70,34 +84,91 @@ class _ControlState extends State<Control> {
   }
 
   void toggleArm() {
+    if (isArmed) {
+      disarm();
+      return;
+    }
     setState(() {
-      isArmed = !isArmed;
-      aux1 = isArmed ? 1500 : 1200;
+      isArmed = true;
+      throttle = throttleIdle;
+      aux1 = aux1Armed;
     });
     sendData();
   }
 
+  /// Disarms, centres the sticks and returns throttle to idle, so that
+  /// arming again never starts from a leftover throttle value.
+  void disarm() {
+    void reset() {
+      isArmed = false;
+      roll = channelCentre;
+      pitch = channelCentre;
+      throttle = throttleIdle;
+      yaw = channelCentre;
+      aux1 = aux1Disarmed;
+    }
+
+    if (mounted) {
+      setState(reset);
+    } else {
+      reset();
+    }
+    sendData();
+  }
+
+  /// Disarms, makes sure the drone has been told, then closes the app.
+  Future<void> quit() async {
+    disarm();
+    for (var i = 0; i < 3; i++) {
+      await sendData();
+    }
+    exit(0);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Leaving the foreground must not leave an armed drone behind. `inactive`
+    // is left out on purpose: it also fires for brief interruptions such as
+    // the notification shade.
+    final leftForeground = state == AppLifecycleState.hidden
+        || state == AppLifecycleState.paused
+        || state == AppLifecycleState.detached;
+    if (leftForeground && isArmed) disarm();
+  }
+
   @override
   void dispose() {
-    sender.close();
+    WidgetsBinding.instance.removeObserver(this);
+    sendTimer?.cancel();
+    final socket = sender;
+    sender = null;
+    if (socket != null) {
+      socket
+          .send(encodeDisarmPacket(), droneEndpoint)
+          .catchError((_) => 0)
+          .whenComplete(socket.close);
+    }
     resetOrientation();
     super.dispose();
   }
 
-  void sendData() async {
-    if (!senderReady) return;
+  Future<void> sendData() async {
+    final socket = sender;
+    if (socket == null) return;
 
-    final buffer = ByteData(10);
-    buffer.setUint16(0, roll, Endian.little);
-    buffer.setUint16(2, pitch, Endian.little);
-    buffer.setUint16(4, throttle, Endian.little);
-    buffer.setUint16(6, yaw, Endian.little);
-    buffer.setUint16(8, aux1, Endian.little);
-
-    await sender.send(
-      buffer.buffer.asUint8List(),
-      Endpoint.unicast(InternetAddress(widget.droneIP), port: const Port(9877)),
+    final packet = encodeControlPacket(
+      roll: roll,
+      pitch: pitch,
+      throttle: throttle,
+      yaw: yaw,
+      aux1: aux1,
     );
+    try {
+      await socket.send(packet, droneEndpoint);
+    } catch (_) {
+      // A failed send is a dropped packet. If they keep failing, the Pico W
+      // times out and the flight controller's failsafe takes over.
+    }
   }
 
   @override
@@ -126,6 +197,7 @@ class _ControlState extends State<Control> {
             onReloadCamera: () { setState(() { feedRefreshKey++; }); },
             isArmed: isArmed,
             onToggleArm: toggleArm,
+            onQuit: quit,
           ),
         ],
       ),

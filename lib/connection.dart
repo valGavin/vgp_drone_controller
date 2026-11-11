@@ -19,6 +19,7 @@ class _ConnectionState extends State<Connection> {
   String droneIP = '';
   String cameraIP = '';
   bool waitingDots = true;
+  bool openingControl = false;
 
   late UDP receiver;
 
@@ -42,21 +43,28 @@ class _ConnectionState extends State<Connection> {
       if (datagram == null) return;
       final message = String.fromCharCodes(datagram.data);
       final senderIP = datagram.address.address;
-      if (message.startsWith('DRONE|') && !droneConnected) {
-        setState(() {
-          droneConnected = true;
-          droneIP = message.split('|')[1];
-        });
+      // Acknowledge every announcement, not only the first: a device that
+      // is still announcing did not receive the previous acknowledgement.
+      if (message.startsWith('DRONE|')) {
+        if (!droneConnected) {
+          setState(() {
+            droneConnected = true;
+            droneIP = message.split('|')[1];
+          });
+        }
         await sendAck(senderIP, 9877);
       }
-      if (message.startsWith('CAMERA|') && !cameraConnected) {
-        setState(() {
-          cameraConnected = true;
-          cameraIP = message.split('|')[1];
-        });
+      if (message.startsWith('CAMERA|')) {
+        if (!cameraConnected) {
+          setState(() {
+            cameraConnected = true;
+            cameraIP = message.split('|')[1];
+          });
+        }
         await sendAck(senderIP, 9878);
       }
-      if (droneConnected && cameraConnected) {
+      if (droneConnected && cameraConnected && !openingControl) {
+        openingControl = true;
         await Future.delayed(const Duration(seconds: 1));
         receiver.close();
         if (mounted) {

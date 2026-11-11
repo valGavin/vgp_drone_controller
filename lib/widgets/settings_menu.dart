@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 
 class SettingsMenu extends StatefulWidget {
-  final VoidCallback onReloadCamera, onToggleArm;
+  final VoidCallback onReloadCamera, onToggleArm, onQuit;
   final bool isArmed;
 
   const SettingsMenu({
     super.key,
     required this.onReloadCamera,
     required this.onToggleArm,
+    required this.onQuit,
     required this.isArmed,
   });
 
@@ -82,7 +82,7 @@ class _SettingsMenuState extends State<SettingsMenu> {
                             'Quit',
                             style: TextStyle(color: Colors.white),
                           ),
-                          onTap: () { exit(0); },
+                          onTap: () { widget.onQuit(); },
                         ),
                         ListTile(
                           title: Row(
@@ -104,7 +104,7 @@ class _SettingsMenuState extends State<SettingsMenu> {
                             ],
                           ),
                           onTap: () {
-                            widget.onToggleArm;
+                            widget.onToggleArm();
                             setState(() => showMenu = false);
                           },
                         ),
